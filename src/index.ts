@@ -1,45 +1,25 @@
-import inquirer from 'inquirer';
-import { api } from './api.js';
+import { ApiUtil } from './api.js';
+import { selectQuery } from './steps/query.js';
+import { selectMovies } from './steps/select-movies.js';
+import { selectFolder } from './steps/select-folder.js';
+import { downloadMovies } from './download.js';
 
 async function main() {
 	console.log('Willkommen zum Mediathek Downloader!');
 	console.log('Bitte geben Sie die Suchkriterien ein:');
-	const query = await inquirer.prompt([
-		{ type: 'input', name: 'channel', message: 'Sender:', optional: true },
-		{ type: 'input', name: 'topic', message: 'Thema:', optional: true },
-		{ type: 'input', name: 'title', message: 'Titel:', optional: true },
-		{ type: 'input', name: 'description', message: 'Beschreibung:', optional: true },
-		{ type: 'number', name: 'durationMin', message: 'min. Dauer (Minuten):', optional: true },
-		{ type: 'number', name: 'durationMax', message: 'max. Dauer (Minuten):', optional: true },
-	]);
 
-	const res = await api.post('/api/query', {
-		queries: [
-			{ fields: ['channel'], query: query.channel },
-			{ fields: ['topic'], query: query.topic },
-			{ fields: ['title'], query: query.title },
-			{ fields: ['description'], query: query.description },
-		],
-		sortBy: 'timestamp',
-		sortOrder: 'desc',
-		future: true,
-		duration_min: query.durationMin ? query.durationMin * 60 : undefined,
-		duration_max: query.durationMax ? query.durationMax * 60 : undefined,
-		offset: 0,
-		size: 5,
-	});
+	try {
+		const q = await selectQuery();
+		const items = await ApiUtil.getAllItems(q);
 
-	const selected = await inquirer.prompt([
-		{
-			type: 'checkbox',
-			name: 'items',
-			message: 'Filme auswählen',
-			choices: ['Film 1', 'Film 2', 'Film 3'],
-			loop: false,
-		},
-	]);
+		const selectedItems = await selectMovies(items);
+		const downloadDir = await selectFolder();
 
-	console.log(res);
-	console.log(selected);
+		await downloadMovies(selectedItems, downloadDir);
+		console.log('Downloads abgeschlossen!');
+	} catch (err) {
+		console.log(err);
+		process.exit(0);
+	}
 }
 main();

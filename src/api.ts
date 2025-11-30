@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Query } from './types.js';
+import { Query, QueryItem, QueryResult } from './types.js';
 
 export const api = axios.create({
 	baseURL: 'https://mediathekviewweb.de',
@@ -35,13 +35,42 @@ export class ApiUtil {
 		};
 	};
 
-	public static getNumberOfItems = async (query: Query) => {
+	public static getPreviewItems = async (
+		query: Query
+	): Promise<QueryResult<QueryItem> | undefined> => {
 		try {
-			const res = await this.api.post('/api/query', this.buildQuery(query));
-		} catch {
-			//
-		} finally {
-			//
+			const res = await this.api.post<QueryResult<QueryItem>>(
+				'/api/query',
+				this.buildQuery(query, 0, 5)
+			);
+
+			return res.data;
+		} catch (err) {
+			return undefined;
+		}
+	};
+
+	public static getAllItems = async (query: Query): Promise<QueryItem[]> => {
+		try {
+			let items: QueryItem[] = [];
+			let offset = 0;
+			let totalResults = 0;
+			const size = 15;
+
+			do {
+				const res = await this.api.post<QueryResult<QueryItem>>(
+					'/api/query',
+					this.buildQuery(query, offset, size)
+				);
+
+				items.push(...res.data.result.results);
+				totalResults = res.data.result.queryInfo.totalResults;
+				offset += size;
+			} while (items.length < totalResults);
+
+			return items;
+		} catch (err) {
+			return [];
 		}
 	};
 }
