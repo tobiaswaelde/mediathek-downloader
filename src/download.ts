@@ -19,18 +19,26 @@ export async function downloadMovies(items: QueryItem[], folder: string) {
 	for (let i = 0; i < items.length; i++) {
 		const item = items[i];
 		const url = item.url_video_hd;
-		const size = await getContentLength(item.url_video_hd);
 
 		const filename = path.basename(
 			`${item.topic} - ${item.title}`.replace(/[\/\\?%*:|"<>]/g, '_') + path.extname(url)
 		);
 		const filePath = path.join(folder, filename);
+		if (fs.existsSync(filePath)) {
+			console.log(`Datei '${filename}' existiert bereits, überspringe Download.`);
+			continue;
+		}
 
+		const size = await getContentLength(item.url_video_hd);
 		const fileBar = multiBar.create(size, 0, { item: i + 1, items: items.length, name: filename });
 
-		await downloadFile(url, filePath, (chunkSize) => {
-			fileBar.increment(chunkSize);
-		});
+		try {
+			await downloadFile(url, filePath, (chunkSize) => {
+				fileBar.increment(chunkSize);
+			});
+		} catch {
+			console.error(`Fehler beim Download von '${filename}', überspringe Datei.`);
+		}
 
 		fileBar.stop();
 	}
